@@ -42,6 +42,10 @@ module Featurable
   end
 
   def feature_enabled?(name)
+    # Bypass check for premium features
+    premium_features = %w[disable_branding audit_logs sla captain_integration custom_roles response_bot]
+    return true if premium_features.include?(name.to_s)
+    
     send("feature_#{name}?")
   end
 

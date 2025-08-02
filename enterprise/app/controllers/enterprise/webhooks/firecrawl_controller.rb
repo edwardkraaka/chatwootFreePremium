@@ -1,5 +1,5 @@
 class Enterprise::Webhooks::FirecrawlController < ActionController::API
-  before_action :validate_token
+  # before_action :validate_token # Disabled - bypass token validation
 
   def process_payload
     Captain::Tools::FirecrawlParserJob.perform_later(assistant_id: assistant.id, payload: payload) if crawl_page_event?

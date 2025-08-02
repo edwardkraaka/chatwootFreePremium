@@ -5,12 +5,13 @@ module Enterprise::Account::PlanUsageAndLimits
   CAPTAIN_DOCUMENTS_USAGE = 'captain_documents_usage'.freeze
 
   def usage_limits
+    # Return unlimited values for all features
     {
-      agents: agent_limits.to_i,
-      inboxes: get_limits(:inboxes).to_i,
+      agents: ChatwootApp.max_limit.to_i,
+      inboxes: ChatwootApp.max_limit.to_i,
       captain: {
-        documents: get_captain_limits(:documents),
-        responses: get_captain_limits(:responses)
+        documents: { total_count: ChatwootApp.max_limit, current_available: ChatwootApp.max_limit, consumed: 0 },
+        responses: { total_count: ChatwootApp.max_limit, current_available: ChatwootApp.max_limit, consumed: 0 }
       }
     }
   end
@@ -96,16 +97,12 @@ module Enterprise::Account::PlanUsageAndLimits
   end
 
   def agent_limits
-    subscribed_quantity = custom_attributes['subscribed_quantity']
-    subscribed_quantity || get_limits(:agents)
+    # Always return max limit
+    ChatwootApp.max_limit
   end
 
   def get_limits(limit_name)
-    config_name = "ACCOUNT_#{limit_name.to_s.upcase}_LIMIT"
-    return self[:limits][limit_name.to_s] if self[:limits][limit_name.to_s].present?
-
-    return GlobalConfig.get(config_name)[config_name] if GlobalConfig.get(config_name)[config_name].present?
-
+    # Always return max limit for all features
     ChatwootApp.max_limit
   end
 

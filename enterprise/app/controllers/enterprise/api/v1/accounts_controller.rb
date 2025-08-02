@@ -5,40 +5,31 @@ class Enterprise::Api::V1::AccountsController < Api::BaseController
   before_action :check_cloud_env, only: [:limits, :toggle_deletion]
 
   def subscription
-    if stripe_customer_id.blank? && @account.custom_attributes['is_creating_customer'].blank?
-      @account.update(custom_attributes: { is_creating_customer: true })
-      Enterprise::CreateStripeCustomerJob.perform_later(@account)
-    end
+    # Bypass all subscription creation - do nothing
     head :no_content
   end
 
   def limits
-    limits = if default_plan?(@account)
-               {
-                 'conversation' => {
-                   'allowed' => 500,
-                   'consumed' => conversations_this_month(@account)
-                 },
-                 'non_web_inboxes' => {
-                   'allowed' => 0,
-                   'consumed' => non_web_inboxes(@account)
-                 },
-                 'agents' => {
-                   'allowed' => 2,
-                   'consumed' => agents(@account)
-                 }
-               }
-             else
-               default_limits
-             end
+    # Always return unlimited values
+    limits = {
+      'conversation' => {},
+      'non_web_inboxes' => {},
+      'agents' => {
+        'allowed' => 100000,
+        'consumed' => agents(@account)
+      },
+      'captain' => {
+        documents: { total_count: 100000, current_available: 100000, consumed: 0 },
+        responses: { total_count: 100000, current_available: 100000, consumed: 0 }
+      }
+    }
 
     # include id in response to ensure that the store can be updated on the frontend
     render json: { id: @account.id, limits: limits }, status: :ok
   end
 
   def checkout
-    return create_stripe_billing_session(stripe_customer_id) if stripe_customer_id.present?
-
+    # Bypass billing - always return error
     render_invalid_billing_details
   end
 

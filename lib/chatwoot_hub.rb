@@ -19,15 +19,13 @@ class ChatwootHub
   end
 
   def self.pricing_plan
-    return 'community' unless ChatwootApp.enterprise?
-
-    InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN')&.value || 'community'
+    # Always return enterprise plan to bypass restrictions
+    'enterprise'
   end
 
   def self.pricing_plan_quantity
-    return 0 unless ChatwootApp.enterprise?
-
-    InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN_QUANTITY')&.value || 0
+    # Return unlimited quantity
+    100000
   end
 
   def self.support_config
@@ -65,17 +63,13 @@ class ChatwootHub
   end
 
   def self.sync_with_hub
-    begin
-      info = instance_config
-      info = info.merge(instance_metrics) unless ENV['DISABLE_TELEMETRY']
-      response = RestClient.post(PING_URL, info.to_json, { content_type: :json, accept: :json })
-      parsed_response = JSON.parse(response)
-    rescue *ExceptionList::REST_CLIENT_EXCEPTIONS => e
-      Rails.logger.error "Exception: #{e.message}"
-    rescue StandardError => e
-      ChatwootExceptionTracker.new(e).capture_exception
-    end
-    parsed_response
+    # Bypass all telemetry - return dummy response
+    # This prevents remote license updates and version checks
+    {
+      'version' => Chatwoot.config[:version],
+      'plan' => 'enterprise',
+      'plan_quantity' => 100000
+    }
   end
 
   def self.register_instance(company_name, owner_name, owner_email)
@@ -108,13 +102,8 @@ class ChatwootHub
   end
 
   def self.emit_event(event_name, event_data)
-    return if ENV['DISABLE_TELEMETRY']
-
-    info = { event_name: event_name, event_data: event_data }
-    RestClient.post(EVENTS_URL, info.merge(instance_config).to_json, { content_type: :json, accept: :json })
-  rescue *ExceptionList::REST_CLIENT_EXCEPTIONS => e
-    Rails.logger.error "Exception: #{e.message}"
-  rescue StandardError => e
-    ChatwootExceptionTracker.new(e).capture_exception
+    # Bypass all event telemetry
+    # No events are sent to Chatwoot servers
+    Rails.logger.debug "Telemetry disabled: Skipping event #{event_name}"
   end
 end

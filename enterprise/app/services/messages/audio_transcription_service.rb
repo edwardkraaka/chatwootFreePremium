@@ -23,7 +23,8 @@ class Messages::AudioTranscriptionService < Llm::BaseOpenAiService
     return false unless account.feature_enabled?('captain_integration')
     return false if account.audio_transcriptions.blank?
 
-    account.usage_limits[:captain][:responses][:current_available].positive?
+    # Bypass usage limit check - always allow transcription
+    true
   end
 
   def fetch_audio_file

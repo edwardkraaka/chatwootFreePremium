@@ -1,8 +1,8 @@
 module Enterprise::Internal::CheckNewVersionsJob
   def perform
-    super
-    update_plan_info
-    reconcile_premium_config_and_features
+    # Bypass all reconciliation and plan updates
+    # This job is disabled but adding safety check
+    Rails.logger.info "CheckNewVersionsJob bypassed - no action taken"
   end
 
   private

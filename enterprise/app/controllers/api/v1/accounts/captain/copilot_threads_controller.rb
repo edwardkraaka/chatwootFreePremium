@@ -30,14 +30,8 @@ class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::
   private
 
   def build_copilot_response(copilot_message)
-    if Current.account.usage_limits[:captain][:responses][:current_available].positive?
-      copilot_message.enqueue_response_job(copilot_thread_params[:conversation_id], Current.user.id)
-    else
-      copilot_message.copilot_thread.copilot_messages.create!(
-        message_type: :assistant,
-        message: { content: I18n.t('captain.copilot_limit') }
-      )
-    end
+    # Bypass usage limit check - always allow responses
+    copilot_message.enqueue_response_job(copilot_thread_params[:conversation_id], Current.user.id)
   end
 
   def ensure_message

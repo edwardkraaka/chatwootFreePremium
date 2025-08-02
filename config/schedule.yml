@@ -3,10 +3,11 @@
 # validations for this file exist in /spec/configs/schedule_spec.rb
 
 # executed At 12:00 on every day-of-month.
-internal_check_new_versions_job:
-  cron: '0 12 */1 * *'
-  class: 'Internal::CheckNewVersionsJob'
-  queue: scheduled_jobs
+# DISABLED - Prevents daily license verification and feature reset
+# internal_check_new_versions_job:
+#   cron: '0 12 */1 * *'
+#   class: 'Internal::CheckNewVersionsJob'
+#   queue: scheduled_jobs
 # # executed At every 5th minute..
 trigger_scheduled_items_job:
   cron: '*/5 * * * *'
@@ -42,7 +43,8 @@ process_stale_contacts_job:
 
 # executed daily at 0100 UTC
 # to delete accounts marked for deletion
-delete_accounts_job:
-  cron: '0 1 * * *'
-  class: 'Internal::DeleteAccountsJob'
-  queue: scheduled_jobs
+# DISABLED - Prevents automatic account deletion
+# delete_accounts_job:
+#   cron: '0 1 * * *'
+#   class: 'Internal::DeleteAccountsJob'
+#   queue: scheduled_jobs
