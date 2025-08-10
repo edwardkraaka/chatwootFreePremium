@@ -13,7 +13,6 @@ services:
     env_file: .env
     volumes:
       - storage_data:/app/storage
-    restart: unless-stopped
 
   rails:
     <<: *base
@@ -22,10 +21,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Port 3000 must remain exposed for NPM on separate VPS to access
-    # Security will be handled via firewall rules (UFW)
     ports:
-      - '3000:3000'  # Required for cross-VPS NPM access
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - RAILS_ENV=production
@@ -34,15 +31,10 @@ services:
       - POSTGRES_DATABASE=chatwoot_production
     volumes:
       - storage_data:/app/storage
-      - ./backup.sql:/app/backup.sql:ro  # Mount backup for auto-restoration
+      - ./backup.sql:/app/backup.sql:ro  # Mount backup.sql if it exists
     entrypoint: docker/entrypoints/rails.sh
     command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health_check"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+    restart: always
 
   sidekiq:
     <<: *base
@@ -60,25 +52,20 @@ services:
       - POSTGRES_USERNAME=postgres
       - POSTGRES_DATABASE=chatwoot_production
     command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
-    healthcheck:
-      test: ["CMD-SHELL", "bundle exec sidekiqmon processes | grep -q 'Processes'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    restart: always
 
   postgres:
     image: pgvector/pgvector:pg16
-    restart: unless-stopped
+    restart: always
     env_file: .env
-    # CRITICAL: No external ports exposed - PostgreSQL only accessible internally
-    expose:
-      - "5432"  # Internal exposure only
+    ports:
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=chatwoot_production
       - POSTGRES_USER=postgres
-      # POSTGRES_PASSWORD is sourced from .env file
+      # POSTGRES_PASSWORD is sourced from the .env file
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d chatwoot_production || pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -87,23 +74,15 @@ services:
 
   redis:
     image: redis:alpine
-    restart: unless-stopped
-    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\" --maxmemory 500mb --maxmemory-policy allkeys-lru"]
+    restart: always
+    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
     env_file: .env
-    # CRITICAL: No external ports exposed - Redis only accessible internally
-    expose:
-      - "6379"  # Internal exposure only
     volumes:
       - redis_data:/data
+    ports:
+      - '6379:6379'
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-# Production configuration notes:
-# 1. PostgreSQL and Redis are NOT exposed externally for security
-# 2. Rails port 3000 is exposed for NPM access from separate VPS
-# 3. Use firewall rules (UFW) to restrict port 3000 to NPM server IP only
-# 4. All services have health checks and restart policies
-# 5. Redis configured with memory limits for production use
