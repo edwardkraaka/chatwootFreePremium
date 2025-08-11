@@ -94,3 +94,7 @@ yarn-debug.log*
 
 # Claude.ai config file
 CLAUDE.md
+
+# SQL backup files
+backup.sql
+*.sql
