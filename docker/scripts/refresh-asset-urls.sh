@@ -25,10 +25,15 @@ echo ""
 
 # Clear Redis cache (if Redis is available)
 echo "2️⃣  Clearing Redis cache..."
-if bundle exec rails runner "Redis.new.flushdb" 2>/dev/null; then
-    echo "   ✅ Redis cache cleared"
+if bundle exec rails runner "
+  redis_config = { host: ENV.fetch('REDIS_HOST', 'redis') }
+  redis_config[:password] = ENV['REDIS_PASSWORD'] if ENV['REDIS_PASSWORD'].present?
+  Redis.new(redis_config).flushdb
+  puts '   ✅ Redis cache cleared'
+" 2>/dev/null; then
+    :
 else
-    echo "   ⚠️  Redis not available or already empty"
+    echo "   ⚠️  Redis not available or error clearing cache"
 fi
 echo ""
 

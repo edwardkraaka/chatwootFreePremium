@@ -13,7 +13,11 @@ if [ -n "$FRONTEND_URL" ]; then
     if [ "$LAST_URL" != "$FRONTEND_URL" ]; then
       echo "🔄 Domain change detected: $LAST_URL → $FRONTEND_URL"
       echo "   Clearing Redis cache..."
-      redis-cli -h redis FLUSHDB 2>/dev/null || true
+      if [ -n "$REDIS_PASSWORD" ]; then
+        redis-cli -h redis -a "$REDIS_PASSWORD" FLUSHDB 2>/dev/null || true
+      else
+        redis-cli -h redis FLUSHDB 2>/dev/null || true
+      fi
     fi
   fi
   echo "$FRONTEND_URL" > /app/tmp/.last_frontend_url
