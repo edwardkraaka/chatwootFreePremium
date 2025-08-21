@@ -20,43 +20,45 @@ done
 
 echo "Database ready to accept connections."
 
-# 🚀 AUTO-RESTORE FUNCTIONALITY
-# Set password for psql commands
+# Database initialization
 export PGPASSWORD=$POSTGRES_PASSWORD
 
-# Check if backup.sql exists and hasn't been restored yet
-if [ -f "/app/backup.sql" ] && [ ! -f "/app/backup.sql.completed" ]; then
-  echo "📦 Found backup.sql - starting restore process..."
-  
-  # Drop and recreate database
-  echo "🗑️  Dropping existing database..."
-  psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -c "DROP DATABASE IF EXISTS $POSTGRES_DATABASE;"
-  
-  echo "🆕 Creating fresh database..."
+# Ensure database exists
+if ! psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -lqt | cut -d \| -f 1 | grep -qw $POSTGRES_DATABASE; then
+  echo "🆕 Creating database $POSTGRES_DATABASE..."
   psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -c "CREATE DATABASE $POSTGRES_DATABASE;"
+fi
+
+# Check if database is initialized (has tables)
+TABLE_COUNT=$(psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -d $POSTGRES_DATABASE -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+TABLE_COUNT=$(echo $TABLE_COUNT | tr -d ' ')
+
+# If database is empty, run migrations to initialize Chatwoot schema
+if [ "$TABLE_COUNT" = "0" ] || [ -z "$TABLE_COUNT" ]; then
+  echo "📦 Initializing Chatwoot database schema..."
+  bundle exec rails db:migrate
   
-  echo "📥 Restoring from backup.sql..."
-  psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -d $POSTGRES_DATABASE -f /app/backup.sql
-  
-  echo "✅ Database restored successfully!"
-  
-  # Create a marker file instead of renaming (since backup.sql is mounted read-only)
-  touch /app/backup.sql.completed
-  echo "📝 Marked backup as completed"
-else
-  echo "ℹ️  No backup.sql found - checking if database exists..."
-  
-  # Check if database exists, create if not
-  if ! psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -lqt | cut -d \| -f 1 | grep -qw $POSTGRES_DATABASE; then
-    echo "🆕 Creating database..."
-    psql -h $POSTGRES_HOST -U $POSTGRES_USERNAME -c "CREATE DATABASE $POSTGRES_DATABASE;"
-    
-    echo "🔄 Running migrations..."
-    bundle exec rails db:migrate
+  # Check if we should seed the database
+  if [ -f "/app/backup.sql" ]; then
+    echo "ℹ️  Backup file detected, skipping seed data"
   else
-    echo "✅ Database already exists"
+    echo "🌱 Seeding initial data..."
+    bundle exec rails db:seed
+  fi
+  
+  echo "✅ Database schema initialized"
+else
+  echo "✅ Database already initialized with $TABLE_COUNT tables"
+  
+  # Check if migrations are pending
+  if bundle exec rails db:migrate:status | grep -q "down"; then
+    echo "🔄 Running pending migrations..."
+    bundle exec rails db:migrate
   fi
 fi
+
+# NOTE: Backup restoration should be done separately after Chatwoot is fully initialized
+# To restore a backup, use: docker compose exec rails /app/docker/scripts/restore-backup.sh
 
 #install missing gems for local dev as we are using base image compiled for production
 bundle install
