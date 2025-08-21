@@ -6,6 +6,19 @@ set -x
 rm -rf /app/tmp/pids/server.pid
 rm -rf /app/tmp/cache/*
 
+# Check if FRONTEND_URL has changed and clear caches if needed
+if [ -n "$FRONTEND_URL" ]; then
+  if [ -f /app/tmp/.last_frontend_url ]; then
+    LAST_URL=$(cat /app/tmp/.last_frontend_url)
+    if [ "$LAST_URL" != "$FRONTEND_URL" ]; then
+      echo "🔄 Domain change detected: $LAST_URL → $FRONTEND_URL"
+      echo "   Clearing Redis cache..."
+      redis-cli -h redis FLUSHDB 2>/dev/null || true
+    fi
+  fi
+  echo "$FRONTEND_URL" > /app/tmp/.last_frontend_url
+fi
+
 echo "Waiting for postgres to become ready...."
 
 # Let DATABASE_URL env take presedence over individual connection params.
