@@ -161,6 +161,119 @@ CAPTAIN_OPEN_AI_API_KEY=your-openai-key
 CAPTAIN_OPEN_AI_MODEL=gpt-4o-mini
 ```
 
+## Custom Development: SIP Dialing for Voice Channel
+
+### 4. SIP Dial to Asterisk PBX (Temporary Implementation)
+**File**: `enterprise/app/services/voice/inbound_call_builder.rb`
+**Lines**: Modified `twiml_response` method and added helper methods
+**Branch**: `feature/sip-dial-asterisk`
+**Tag**: `sip-dial-v1.0`
+**Status**: ⚠️ Temporary custom implementation (will be replaced when official implementation arrives)
+
+**Purpose**: Routes incoming voice calls to Asterisk PBX server via SIP instead of default Twilio behavior.
+
+**TwiML Generated**:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Connecting you to support</Say>
+  <Dial timeout="30" action="https://your-domain.com/twilio/voice/status/15551234567">
+    <Sip username="guala" password="CantHaCk101">sip:guala@sip.goodwings.org</Sip>
+  </Dial>
+</Response>
+```
+
+**Code Changes**:
+```ruby
+def twiml_response
+  response = Twilio::TwiML::VoiceResponse.new
+
+  if sip_dial_enabled?
+    # SIP dial to Asterisk
+    response.say(message: 'Connecting you to support')
+    response.dial(timeout: 30, action: dial_callback_url) do |dial|
+      dial.sip(sip_endpoint, username: sip_username, password: sip_password)
+    end
+  else
+    # Original behavior (for when you want to revert)
+    response.say(message: 'Please wait while we connect you to an agent')
+  end
+
+  response.to_s
+end
+
+private
+
+def sip_dial_enabled?
+  ENV['ENABLE_SIP_DIAL'] == 'true' && sip_endpoint.present?
+end
+
+def sip_endpoint
+  ENV['SIP_ENDPOINT'] || 'sip:guala@sip.goodwings.org'
+end
+
+def sip_username
+  ENV['SIP_USERNAME']
+end
+
+def sip_password
+  ENV['SIP_PASSWORD']
+end
+
+def dial_callback_url
+  inbox.channel.voice_status_webhook_url
+end
+```
+
+**Environment Variables Required** (add to `.env`):
+```bash
+# ========================================
+# SIP Dial Configuration (Asterisk)
+# ========================================
+ENABLE_SIP_DIAL=true
+SIP_ENDPOINT=sip:guala@sip.goodwings.org
+SIP_USERNAME=guala
+SIP_PASSWORD=CantHaCk101
+```
+
+**How It Works**:
+1. Incoming call hits Twilio → Twilio requests TwiML from Chatwoot webhook
+2. `InboundCallBuilder` checks `ENABLE_SIP_DIAL` environment variable
+3. If enabled, generates TwiML with `<Dial><Sip>` instruction
+4. Twilio forwards call to Asterisk server at `sip.goodwings.org`
+5. Call rings on Asterisk SIP softphone
+6. Customer attribution: Phone number automatically matched to existing contacts
+7. Call status tracking: Real-time updates in dashboard (`ringing` → `in-progress` → `completed`)
+
+**Rollback Instructions**:
+```bash
+# Option 1: Disable via ENV (instant, no code change)
+# Set in .env:
+ENABLE_SIP_DIAL=false
+
+# Option 2: Revert to main branch
+git checkout main
+
+# Option 3: Remove feature branch entirely
+git branch -D feature/sip-dial-asterisk
+git tag -d sip-dial-v1.0
+```
+
+**Testing Checklist**:
+- [ ] Feature flag OFF: Verify original "Please wait" message plays
+- [ ] Feature flag ON: Verify call routes to Asterisk
+- [ ] Call rings on SIP softphone at sip.goodwings.org
+- [ ] Dashboard shows call status (ringing → in-progress → completed)
+- [ ] Customer attribution works (existing contacts linked by phone number)
+- [ ] Call recording/history preserved in conversation
+
+**When Official Implementation Arrives**:
+1. Set `ENABLE_SIP_DIAL=false` in `.env`
+2. Test official implementation
+3. If working, delete custom branch: `git branch -D feature/sip-dial-asterisk`
+4. Update `.env.example` to remove SIP config section
+5. Remove this documentation section
+
 ## Version History
 
 - **v4.1.0** - Initial fork with premium unlocks
@@ -171,6 +284,7 @@ CAPTAIN_OPEN_AI_MODEL=gpt-4o-mini
   - MFA/2FA support
   - SAML authentication
   - 20+ new database migrations
+- **Oct 7, 2025** - Added SIP dial to Asterisk (custom implementation on `feature/sip-dial-asterisk` branch)
 
 ## Notes
 

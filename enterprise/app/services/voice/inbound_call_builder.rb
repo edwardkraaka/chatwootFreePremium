@@ -13,11 +13,42 @@ class Voice::InboundCallBuilder
 
   def twiml_response
     response = Twilio::TwiML::VoiceResponse.new
-    response.say(message: 'Please wait while we connect you to an agent')
+
+    if sip_dial_enabled?
+      # SIP dial to Asterisk
+      response.say(message: 'Connecting you to support')
+      response.dial(timeout: 30, action: dial_callback_url) do |dial|
+        dial.sip(sip_endpoint, username: sip_username, password: sip_password)
+      end
+    else
+      # Original behavior (for when you want to revert)
+      response.say(message: 'Please wait while we connect you to an agent')
+    end
+
     response.to_s
   end
 
   private
+
+  def sip_dial_enabled?
+    ENV['ENABLE_SIP_DIAL'] == 'true' && sip_endpoint.present?
+  end
+
+  def sip_endpoint
+    ENV['SIP_ENDPOINT'] || 'sip:guala@sip.goodwings.org'
+  end
+
+  def sip_username
+    ENV['SIP_USERNAME']
+  end
+
+  def sip_password
+    ENV['SIP_PASSWORD']
+  end
+
+  def dial_callback_url
+    inbox.channel.voice_status_webhook_url
+  end
 
   def find_or_create_conversation!(contact, contact_inbox)
     account.conversations.find_or_create_by!(
