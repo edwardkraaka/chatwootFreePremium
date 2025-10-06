@@ -23,6 +23,8 @@ class ChatwootHub
   end
 
   def self.pricing_plan_quantity
+    return 0 unless ChatwootApp.enterprise?
+
     InstallationConfig.find_by(name: 'INSTALLATION_PRICING_PLAN_QUANTITY')&.value || 0
   end
 

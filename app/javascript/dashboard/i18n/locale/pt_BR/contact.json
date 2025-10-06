@@ -17,6 +17,11 @@
     "IP_ADDRESS": "Endereço IP",
     "CREATED_AT_LABEL": "Criado",
     "NEW_MESSAGE": "Nova Mensagem",
+    "CALL": "Chamada",
+    "CALL_UNDER_DEVELOPMENT": "Calling is under development",
+    "VOICE_INBOX_PICKER": {
+      "TITLE": "Choose a voice inbox"
+    },
     "CONVERSATIONS": {
       "NO_RECORDS_FOUND": "Não há conversas anteriores associadas a este contato.",
       "TITLE": "Conversas anteriores"
@@ -283,15 +288,16 @@
   },
   "CONTACTS_LAYOUT": {
     "HEADER": {
-      "TITLE": "Contato",
+      "TITLE": "Contatos",
       "SEARCH_TITLE": "Pesquisar contatos",
+      "ACTIVE_TITLE": "Contatos ativos",
       "SEARCH_PLACEHOLDER": "Pesquisar...",
       "MESSAGE_BUTTON": "Enviar Mensagem",
       "SEND_MESSAGE": "Enviar mensagem",
       "BLOCK_CONTACT": "Bloquear contato",
       "UNBLOCK_CONTACT": "Desbloquear contato",
       "BREADCRUMB": {
-        "CONTACTS": "Contato"
+        "CONTACTS": "Contatos"
       },
       "ACTIONS": {
         "CONTACT_CREATION": {
@@ -457,6 +463,10 @@
             "PLACEHOLDER": "Adicionar Twitter"
           }
         }
+      },
+      "DELETE_CONTACT": {
+        "MESSAGE": "Esta ação é permanente e irreversível.",
+        "BUTTON": "Excluir agora"
       }
     },
     "DETAILS": {
@@ -466,7 +476,7 @@
       "DELETE_CONTACT": "Excluir contato",
       "DELETE_DIALOG": {
         "TITLE": "Confirmar exclusão",
-        "DESCRIPTION": "Tem certeza de que deseja excluir este contato {contactName}?",
+        "DESCRIPTION": "Tem certeza de que deseja excluir este contato?",
         "CONFIRM": "Sim, excluir",
         "API": {
           "SUCCESS_MESSAGE": "Contato excluído com sucesso",
@@ -544,10 +554,12 @@
         "WROTE": "escreveu",
         "YOU": "Você",
         "SAVE": "Salvar nota",
+        "ADD_NOTE": "Adicionar nota de contato",
         "EXPAND": "Expandir",
-        "COLLAPSE": "Collapse",
-        "NO_NOTES": "No notes, you can add notes from the contact details page.",
-        "EMPTY_STATE": "Não existem notas associadas a este contato. Você pode adicionar uma nota digitando na caixa acima."
+        "COLLAPSE": "Recolher",
+        "NO_NOTES": "Sem notas, você pode adicionar notas a partir da página de detalhes do contato.",
+        "EMPTY_STATE": "Não existem notas associadas a este contato. Você pode adicionar uma nota digitando na caixa acima.",
+        "CONVERSATION_EMPTY_STATE": "Ainda não há notas. Use o botão Adicionar nota para criar uma."
       }
     },
     "EMPTY_STATE": {
@@ -555,7 +567,8 @@
       "SUBTITLE": "Comece a adicionar novos contatos clicando no botão abaixo",
       "BUTTON_LABEL": "Adicionar contato",
       "SEARCH_EMPTY_STATE_TITLE": "Nenhum contato corresponde à sua pesquisa 🔍",
-      "LIST_EMPTY_STATE_TITLE": "Não há contatos disponíveis nesta visualização 📋"
+      "LIST_EMPTY_STATE_TITLE": "Não há contatos disponíveis nesta visualização 📋",
+      "ACTIVE_EMPTY_STATE_TITLE": "Nenhum contato está ativo no momento 🌙"
     }
   },
   "COMPOSE_NEW_CONVERSATION": {
@@ -595,6 +608,15 @@
         "TEMPLATE_PARSER": {
           "TEMPLATE_NAME": "Modelo do WhatsApp: {templateName}",
           "VARIABLES": "Variáveis",
+          "BACK": "Voltar atrás",
+          "SEND_MESSAGE": "Enviar mensagem"
+        }
+      },
+      "TWILIO_OPTIONS": {
+        "LABEL": "Selecione o modelo",
+        "SEARCH_PLACEHOLDER": "Pesquisar modelos",
+        "EMPTY_STATE": "Nenhum modelo encontrado",
+        "TEMPLATE_PARSER": {
           "BACK": "Voltar atrás",
           "SEND_MESSAGE": "Enviar mensagem"
         }
