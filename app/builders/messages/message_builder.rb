@@ -159,6 +159,7 @@ class Messages::MessageBuilder
       private: @private,
       sender: sender,
       content_type: @params[:content_type],
+      content_attributes: content_attributes.presence,
       items: @items,
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],
@@ -214,3 +215,5 @@ class Messages::MessageBuilder
     ChatwootMarkdownRenderer.new(content).render_message.to_s
   end
 end
+
+Messages::MessageBuilder.prepend_mod_with('Messages::MessageBuilder')
