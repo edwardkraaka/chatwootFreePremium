@@ -164,8 +164,8 @@ CAPTAIN_OPEN_AI_MODEL=gpt-4o-mini
 ## Custom Development: SIP Dialing for Voice Channel
 
 ### 4. SIP Dial to Asterisk PBX (Temporary Implementation)
-**File**: `enterprise/app/services/voice/inbound_call_builder.rb`
-**Lines**: Modified `twiml_response` method and added helper methods
+**File**: `enterprise/app/controllers/twilio/voice_controller.rb`
+**Lines**: Modified `call_twiml` to render SIP TwiML for inbound contact legs when enabled, and added helper methods
 **Branch**: `feature/sip-dial-asterisk`
 **Tag**: `sip-dial-v1.0`
 **Status**: ⚠️ Temporary custom implementation (will be replaced when official implementation arrives)
@@ -185,24 +185,23 @@ CAPTAIN_OPEN_AI_MODEL=gpt-4o-mini
 
 **Code Changes**:
 ```ruby
-def twiml_response
-  response = Twilio::TwiML::VoiceResponse.new
+def call_twiml
+  call = resolve_call
+  return render xml: sip_twiml if inbound_contact_leg? && sip_dial_enabled?
 
-  if sip_dial_enabled?
-    # SIP dial to Asterisk
-    response.say(message: 'Connecting you to support')
-    response.dial(timeout: 30, action: dial_callback_url) do |dial|
-      dial.sip(sip_endpoint, username: sip_username, password: sip_password)
-    end
-  else
-    # Original behavior (for when you want to revert)
-    response.say(message: 'Please wait while we connect you to an agent')
-  end
-
-  response.to_s
+  render xml: conference_twiml(call)
 end
 
 private
+
+def sip_twiml
+  Twilio::TwiML::VoiceResponse.new.tap do |response|
+    response.say(message: 'Connecting you to support')
+    response.dial(timeout: 30, action: sip_dial_callback_url) do |dial|
+      dial.sip(sip_endpoint, username: sip_username, password: sip_password)
+    end
+  end.to_s
+end
 
 def sip_dial_enabled?
   ENV['ENABLE_SIP_DIAL'] == 'true' && sip_endpoint.present?
@@ -220,8 +219,8 @@ def sip_password
   ENV['SIP_PASSWORD']
 end
 
-def dial_callback_url
-  inbox.channel.voice_status_webhook_url
+def sip_dial_callback_url
+  inbox_channel.voice_status_webhook_url
 end
 ```
 
@@ -238,12 +237,13 @@ SIP_PASSWORD=CantHaCk101
 
 **How It Works**:
 1. Incoming call hits Twilio → Twilio requests TwiML from Chatwoot webhook
-2. `InboundCallBuilder` checks `ENABLE_SIP_DIAL` environment variable
-3. If enabled, generates TwiML with `<Dial><Sip>` instruction
-4. Twilio forwards call to Asterisk server at `sip.goodwings.org`
-5. Call rings on Asterisk SIP softphone
-6. Customer attribution: Phone number automatically matched to existing contacts
-7. Call status tracking: Real-time updates in dashboard (`ringing` → `in-progress` → `completed`)
+2. `Twilio::VoiceController#call_twiml` creates or updates the upstream `Call` record
+3. The controller checks `ENABLE_SIP_DIAL` for inbound contact legs
+4. If enabled, it generates TwiML with `<Dial><Sip>` instead of upstream conference TwiML
+5. Twilio forwards call to Asterisk server at `sip.goodwings.org`
+6. Call rings on Asterisk SIP softphone
+7. Customer attribution: Phone number automatically matched to existing contacts
+8. Call status tracking: Real-time updates in dashboard (`ringing` → `in-progress` → `completed`)
 
 **Rollback Instructions**:
 ```bash
