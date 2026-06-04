@@ -37,12 +37,10 @@ class Enterprise::Billing::ReconcilePlanFeaturesService
   pattr_initialize [:account!]
 
   def perform
-    account.disable_features(*PREMIUM_PLAN_FEATURES)
-    account.disable_features('captain_integration_v2')
-    account.enable_features(*current_plan_features)
-    account.enable_features('captain_integration_v2') if captain_v2_default_eligible?
-    account.enable_features(*manually_managed_features)
-    account.save!
+    # Premium feature reconciliation is intentionally disabled in this fork.
+    # Keep the service callable for upstream billing flows, but never disable
+    # self-hosted premium features based on cloud subscription state.
+    true
   end
 
   private
