@@ -25,8 +25,6 @@ class Twilio::VoiceController < ApplicationController
     )
 
     call = resolve_call
-    return render xml: sip_twiml if inbound_contact_leg? && sip_dial_enabled?
-
     render xml: conference_twiml(call)
   end
 
@@ -90,10 +88,6 @@ class Twilio::VoiceController < ApplicationController
     from_number.start_with?('client:')
   end
 
-  def inbound_contact_leg?
-    twilio_direction == 'inbound' && !agent_leg?(twilio_from)
-  end
-
   def resolve_call
     return find_call_for_agent if agent_leg?(twilio_from)
 
@@ -151,35 +145,6 @@ class Twilio::VoiceController < ApplicationController
         )
       end
     end.to_s
-  end
-
-  def sip_twiml
-    Twilio::TwiML::VoiceResponse.new.tap do |response|
-      response.say(message: 'Connecting you to support')
-      response.dial(timeout: 30, action: sip_dial_callback_url) do |dial|
-        dial.sip(sip_endpoint, username: sip_username, password: sip_password)
-      end
-    end.to_s
-  end
-
-  def sip_dial_enabled?
-    ENV['ENABLE_SIP_DIAL'] == 'true' && sip_endpoint.present?
-  end
-
-  def sip_endpoint
-    ENV['SIP_ENDPOINT'] || 'sip:guala@sip.goodwings.org'
-  end
-
-  def sip_username
-    ENV['SIP_USERNAME']
-  end
-
-  def sip_password
-    ENV['SIP_PASSWORD']
-  end
-
-  def sip_dial_callback_url
-    inbox_channel.voice_status_webhook_url
   end
 
   def ensure_conference_sid!(call)

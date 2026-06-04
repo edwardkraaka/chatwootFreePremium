@@ -25,7 +25,7 @@ describe('useChannelIcon', () => {
       voice_enabled: true,
     };
     const { value: icon } = useChannelIcon(inbox);
-    expect(icon).toBe('i-ri-phone-fill');
+    expect(icon).toBe('i-woot-voice');
   });
 
   it('returns correct icon for Line channel', () => {
@@ -49,7 +49,7 @@ describe('useChannelIcon', () => {
   it('returns correct icon for Twitter channel', () => {
     const inbox = { channel_type: 'Channel::TwitterProfile' };
     const { value: icon } = useChannelIcon(inbox);
-    expect(icon).toBe('i-ri-twitter-x-fill');
+    expect(icon).toBe('i-woot-x');
   });
 
   it('returns correct icon for WebWidget channel', () => {
@@ -62,6 +62,12 @@ describe('useChannelIcon', () => {
     const inbox = { channel_type: 'Channel::Instagram' };
     const { value: icon } = useChannelIcon(inbox);
     expect(icon).toBe('i-woot-instagram');
+  });
+
+  it('returns correct icon for TikTok channel', () => {
+    const inbox = { channel_type: 'Channel::Tiktok' };
+    const { value: icon } = useChannelIcon(inbox);
+    expect(icon).toBe('i-woot-tiktok');
   });
 
   describe('TwilioSms channel', () => {

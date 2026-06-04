@@ -6,6 +6,14 @@ describe Whatsapp::IncomingMessageService do
       stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook')
     end
 
+    after do
+      # The atomic dedup lock lives in Redis and is not rolled back by
+      # transactional fixtures. Clean up any keys created during the test.
+      Redis::Alfred.scan_each(match: 'MESSAGE_SOURCE_KEY::*') do |key|
+        Redis::Alfred.delete(key)
+      end
+    end
+
     let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false) }
     let(:wa_id) { '2423423243' }
     let!(:params) do
@@ -198,7 +206,7 @@ describe Whatsapp::IncomingMessageService do
         expect(whatsapp_channel.inbox.messages.count).to eq(0)
       end
 
-      it 'ignores type unsupported and does not create ghost conversation' do
+      it 'stores type unsupported as a placeholder message so the conversation is not headless' do
         params = {
           'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
           'messages' => [{
@@ -209,9 +217,12 @@ describe Whatsapp::IncomingMessageService do
         }.with_indifferent_access
 
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
-        expect(whatsapp_channel.inbox.conversations.count).to eq(0)
-        expect(Contact.count).to eq(0)
-        expect(whatsapp_channel.inbox.messages.count).to eq(0)
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        expect(Contact.count).to eq(1)
+        expect(whatsapp_channel.inbox.messages.count).to eq(1)
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content).to eq('This message is unavailable.')
+        expect(message.content_attributes['is_unsupported']).to be(true)
       end
     end
 
@@ -370,6 +381,32 @@ describe Whatsapp::IncomingMessageService do
         expect(location_attachment.coordinates_long).to eq(-122.3895553)
         expect(location_attachment.external_url).to eq('http://location_url.test')
       end
+
+      it 'truncates long fallback titles to avoid dropping location messages' do
+        long_place_name = [
+          'Gremi de Fusters, 33, Edificio VIP Asima, Piso 2, Local 2, Norte',
+          '07009 Poligon industrial de Son Castello, Illes Balears, Espana'
+        ].join(', ')
+        source_id = 'wamid.long-location-fallback-title'
+        params = {
+          'contacts' => [{ 'profile' => { 'name' => 'Sojan Jose' }, 'wa_id' => '2423423243' }],
+          'messages' => [{ 'from' => '2423423243', 'id' => source_id,
+                           'location' => { 'id' => 'b1c68f38-8734-4ad3-b4a1-ef0c10d683',
+                                           :address => long_place_name,
+                                           :latitude => 37.7893768,
+                                           :longitude => -122.3895553,
+                                           :name => long_place_name,
+                                           :url => 'http://location_url.test' },
+                           'timestamp' => '1633034394', 'type' => 'location' }]
+        }.with_indifferent_access
+
+        expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }
+          .to change { Message.where(source_id: source_id).count }.from(0).to(1)
+
+        location_attachment = Message.find_by!(source_id: source_id).attachments.first
+        expect(location_attachment.fallback_title).to eq("#{long_place_name}, #{long_place_name}".first(255))
+        expect(location_attachment.fallback_title.length).to eq(255)
+      end
     end
 
     context 'when valid contact message params' do
@@ -463,8 +500,60 @@ describe Whatsapp::IncomingMessageService do
       end
     end
 
-    describe 'when message processing is in progress' do
-      it 'ignores the current message creation request' do
+    describe 'When the incoming waid is an Argentine number with 9 after country code' do
+      let(:wa_id) { '5491123456789' }
+
+      it 'creates appropriate conversations, message and contacts if contact does not exist' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
+        expect(Contact.all.first.name).to eq('Sojan Jose')
+        expect(whatsapp_channel.inbox.messages.first.content).to eq('Test')
+        expect(whatsapp_channel.inbox.contact_inboxes.first.source_id).to eq(wa_id)
+      end
+
+      it 'appends to existing contact if contact inbox exists with normalized format' do
+        # Normalized format removes the 9 after country code
+        normalized_wa_id = '541123456789'
+        contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: normalized_wa_id)
+        last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+        described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+        # no new conversation should be created
+        expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+        # message appended to the last conversation
+        expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+        # should use the normalized wa_id from existing contact
+        expect(whatsapp_channel.inbox.contact_inboxes.first.source_id).to eq(normalized_wa_id)
+      end
+    end
+
+    describe 'When incoming waid is an Argentine number without 9 after country code' do
+      let(:wa_id) { '541123456789' }
+
+      context 'when a contact inbox exists with the same format' do
+        it 'appends to existing contact' do
+          contact_inbox = create(:contact_inbox, inbox: whatsapp_channel.inbox, source_id: wa_id)
+          last_conversation = create(:conversation, inbox: whatsapp_channel.inbox, contact_inbox: contact_inbox)
+          described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+          # no new conversation should be created
+          expect(whatsapp_channel.inbox.conversations.count).to eq(1)
+          # message appended to the last conversation
+          expect(last_conversation.messages.last.content).to eq(params[:messages].first[:text][:body])
+        end
+      end
+
+      context 'when a contact inbox does not exist' do
+        it 'creates contact inbox with the incoming waid' do
+          described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
+          expect(whatsapp_channel.inbox.conversations.count).not_to eq(0)
+          expect(Contact.all.first.name).to eq('Sojan Jose')
+          expect(whatsapp_channel.inbox.messages.first.content).to eq('Test')
+          expect(whatsapp_channel.inbox.contact_inboxes.first.source_id).to eq(wa_id)
+        end
+      end
+    end
+
+    describe 'when another worker already holds the dedup lock' do
+      it 'skips message creation' do
         params = { 'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
                    'messages' => [{ 'from' => '919446284490',
                                     'id' => 'wamid.SDFADSf23sfasdafasdfa',
@@ -479,17 +568,14 @@ describe Whatsapp::IncomingMessageService do
                                         'phones' => [{ 'phone' => '+1 (415) 341-8386' }] }
                                     ] }] }.with_indifferent_access
 
-        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
-        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'wamid.SDFADSf23sfasdafasdfa')
-
-        Redis::Alfred.setex(key, true)
-        expect(Redis::Alfred.get(key)).to be_truthy
+        # Simulate another worker holding the lock
+        lock = Whatsapp::MessageDedupLock.new('wamid.SDFADSf23sfasdafasdfa')
+        expect(lock.acquire!).to be_truthy
 
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
         expect(whatsapp_channel.inbox.messages.count).to eq(0)
-        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
-
-        expect(Redis::Alfred.get(key)).to be_truthy
+      ensure
+        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'wamid.SDFADSf23sfasdafasdfa')
         Redis::Alfred.delete(key)
       end
     end
