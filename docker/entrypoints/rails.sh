@@ -30,5 +30,8 @@ do
   sleep 2;
 done
 
+# Auto-prepare the database (create + migrate + seed if fresh). Idempotent on restarts.
+bundle exec rails db:prepare
+
 # Execute the main process of the container
 exec "$@"
