@@ -29,14 +29,14 @@ describe Enterprise::Billing::ReconcilePlanFeaturesService do
       end
 
       it 'does not remove features during Shopify lifecycle cleanup' do
-        account.enable_features!('audit_logs', 'saml', 'captain_classifier')
-        account.update!(internal_attributes: { 'billing_provider' => 'shopify' }, custom_attributes: { 'plan_name' => nil })
+        shopify_account = create(:account, internal_attributes: { 'billing_provider' => 'shopify', 'signup_source' => 'shopify' })
+        shopify_account.enable_features!('audit_logs', 'saml', 'captain_classifier')
 
-        described_class.new(account: account, shopify_lifecycle_cleanup: true).perform
+        described_class.new(account: shopify_account, shopify_lifecycle_cleanup: true).perform
 
-        expect(account.reload).to be_feature_enabled('audit_logs')
-        expect(account).to be_feature_enabled('saml')
-        expect(account).to be_feature_enabled('captain_classifier')
+        expect(shopify_account.reload).to be_feature_enabled('audit_logs')
+        expect(shopify_account).to be_feature_enabled('saml')
+        expect(shopify_account).to be_feature_enabled('captain_classifier')
       end
     end
 
