@@ -87,6 +87,8 @@ RSpec.describe Account do
   end
 
   describe 'captain defaults for new accounts' do
+    before { allow(ChatwootApp).to receive(:self_hosted_paid?).and_return(false) }
+
     it 'does not store Captain model overrides or enable premium Captain features' do
       InstallationConfig.find_or_initialize_by(name: 'ACCOUNT_LEVEL_FEATURE_DEFAULTS').update!(
         value: Featurable::FEATURE_LIST,
@@ -473,6 +475,7 @@ RSpec.describe Account do
 
     describe 'with no saved preferences' do
       before do
+        allow(ChatwootApp).to receive(:self_hosted_paid?).and_return(false)
         account.update!(captain_models: nil)
       end
 
