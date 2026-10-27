@@ -50,7 +50,8 @@ class Internal::ReconcilePlanConfigService
   end
 
   def reconcile_premium_features
-    return
+    # Self-hosted installs of this fork never have premium features reset.
+    return unless ChatwootApp.chatwoot_cloud?
 
     Account.find_in_batches do |accounts|
       accounts.each do |account|
