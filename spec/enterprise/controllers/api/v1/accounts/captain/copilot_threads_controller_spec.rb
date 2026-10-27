@@ -33,8 +33,22 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(json_response[:payload].length).to eq(3)
+        expect(json_response[:meta]).to eq(total_count: 3, page: 1)
 
         expect(json_response[:payload].map { |thread| thread[:user][:id] }.uniq).to eq([agent.id])
+      end
+
+      it 'paginates older threads' do
+        threads = create_list(:captain_copilot_thread, 21, account: account, user: agent)
+
+        get "/api/v1/accounts/#{account.id}/captain/copilot_threads",
+            params: { page: 2 },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response[:payload].pluck(:id)).to eq([threads.first.id])
+        expect(json_response[:meta]).to eq(total_count: 21, page: 2)
       end
 
       it 'returns threads in descending order of creation' do
@@ -134,6 +148,27 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
             copilot_thread_id: thread.id,
             message: valid_params[:message]
           )
+        end
+
+        it 'truncates the thread title but stores the full message when the message exceeds 255 characters' do
+          account.limits = { captain_responses: 2 }
+          account.custom_attributes = { captain_responses_usage: 0 }
+          account.save!
+
+          long_message = 'a' * 300
+
+          post "/api/v1/accounts/#{account.id}/captain/copilot_threads",
+               params: { message: long_message, assistant_id: assistant.id, conversation_id: conversation.display_id },
+               headers: agent.create_new_auth_token,
+               as: :json
+
+          expect(response).to have_http_status(:success)
+
+          thread = CopilotThread.last
+          expect(thread.title).to eq(long_message.truncate(255, omission: ''))
+
+          message = thread.copilot_messages.last
+          expect(message.message).to eq({ 'content' => long_message })
         end
 
         it 'enqueues the dedicated reply suggestion job' do

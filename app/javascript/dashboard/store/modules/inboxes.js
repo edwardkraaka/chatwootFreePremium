@@ -262,6 +262,13 @@ export const actions = {
       throwErrorMessage(error);
     }
   },
+  updateCallBusinessHours: async ({ commit }, { id, enabled, message }) => {
+    const response = await InboxesAPI.setCallBusinessHours(id, {
+      enabled,
+      message,
+    });
+    commit(types.default.EDIT_INBOXES, response.data);
+  },
   updateInboxIMAP: async ({ commit }, { id, ...inboxParams }) => {
     commit(types.default.SET_INBOXES_UI_FLAG, { isUpdatingIMAP: true });
     try {
@@ -340,6 +347,15 @@ export const actions = {
     } catch (error) {
       throwErrorMessage(error);
       return null;
+    }
+  },
+  rotateHmacToken: async ({ commit }, inboxId) => {
+    try {
+      const response = await InboxesAPI.rotateHmacToken(inboxId);
+      commit(types.default.EDIT_INBOXES, response.data);
+      return response.data;
+    } catch (error) {
+      return throwErrorMessage(error);
     }
   },
 };
