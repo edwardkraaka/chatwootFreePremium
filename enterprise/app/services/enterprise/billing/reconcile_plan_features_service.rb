@@ -45,10 +45,16 @@ class Enterprise::Billing::ReconcilePlanFeaturesService
   pattr_initialize [:account!, { shopify_lifecycle_cleanup: false }]
 
   def perform
-    # Premium feature reconciliation is intentionally disabled in this fork.
-    # Keep the service callable for upstream billing flows, but never disable
-    # self-hosted premium features based on cloud subscription state.
-    true
+    # Plan-based feature reconciliation only applies to Chatwoot Cloud billing.
+    # Self-hosted installs of this fork keep every premium feature unlocked.
+    return unless ChatwootApp.chatwoot_cloud?
+    return if shopify_billing? && !shopify_lifecycle_cleanup && !Shopify::FeatureGate.enabled?(account: account)
+
+    account.disable_features(*managed_plan_features)
+    account.enable_features(*current_plan_features)
+    account.enable_features(*manually_managed_features)
+    update_shopify_managed_features
+    account.save!
   end
 
   private

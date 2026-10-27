@@ -20,6 +20,7 @@ describe Enterprise::Billing::CreateStripeCustomerService do
 
   describe '#perform' do
     before do
+      allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
       create(
         :installation_config,
         { name: 'CHATWOOT_CLOUD_PLANS', value: [

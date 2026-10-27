@@ -47,6 +47,7 @@ RSpec.describe Enterprise::Billing::ShopifySubscriptionSyncService do
   end
 
   before do
+    allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
     plans_config = InstallationConfig.find_or_initialize_by(name: 'CHATWOOT_SHOPIFY_PLANS')
     plans_config.update!(value: shopify_plans, locked: true)
     allow(GlobalConfigService).to receive(:load).and_call_original

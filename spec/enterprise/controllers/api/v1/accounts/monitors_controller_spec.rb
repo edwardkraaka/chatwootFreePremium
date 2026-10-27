@@ -19,6 +19,7 @@ RSpec.describe 'Monitors API', type: :request do
   after { Redis::Alfred.delete(preview_key) }
 
   it 'forbids monitor access after downgrading to Startups' do
+    allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
     account.update!(custom_attributes: { 'plan_name' => 'Startups' })
     Enterprise::Billing::ReconcilePlanFeaturesService.new(account: account).perform
 
