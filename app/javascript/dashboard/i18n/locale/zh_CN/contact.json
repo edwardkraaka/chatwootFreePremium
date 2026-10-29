@@ -3,6 +3,7 @@
     "NOT_AVAILABLE": "不可用",
     "EMAIL_ADDRESS": "电子邮件地址",
     "PHONE_NUMBER": "电话号码",
+    "WHATSAPP_USERNAME": "WhatsApp username",
     "IDENTIFIER": "标识符",
     "COPY_SUCCESSFUL": "已成功复制到剪贴板",
     "COMPANY": "公司",
@@ -28,7 +29,8 @@
     },
     "CONVERSATIONS": {
       "NO_RECORDS_FOUND": "此联系人没有关联到以前的会话。",
-      "TITLE": "上一次对话"
+      "TITLE": "上一次对话",
+      "VIEW_ALL": "View all conversations"
     },
     "LABELS": {
       "CONTACT": {
@@ -460,6 +462,9 @@
           },
           "INSTAGRAM": {
             "PLACEHOLDER": "添加 Instagram"
+          },
+          "WHATSAPP": {
+            "PLACEHOLDER": "Add WhatsApp"
           },
           "TELEGRAM": {
             "PLACEHOLDER": "Add Telegram"
