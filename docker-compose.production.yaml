@@ -1,7 +1,14 @@
-version: '3'
+x-base: &base
+  image: chatwoot-freepremium:production
+  env_file: .env ## Change this file for customized env variables
+  volumes:
+    - storage_data:/app/storage
 
 services:
-  base: &base
+  # Only rails builds the image; sidekiq reuses it. Building it from several
+  # services at once races on the tag ("image ... already exists").
+  rails:
+    <<: *base
     build:
       context: .
       dockerfile: ./docker/Dockerfile
@@ -9,13 +16,6 @@ services:
         BUNDLE_WITHOUT: 'development:test'
         RAILS_ENV: 'production'
         RAILS_SERVE_STATIC_FILES: 'true'
-    image: chatwoot-freepremium:production
-    env_file: .env ## Change this file for customized env variables
-    volumes:
-      - storage_data:/app/storage
-
-  rails:
-    <<: *base
     depends_on:
       - postgres
       - redis
